@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>在线合并单元格</title>
+    <style>
+        label{display:flex;  }
+        td[data-selected='true']{background:rgb(139, 132, 219)  }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- <label>
+            <span>行数</span>
+            <input type="text" >
+        </label>
+        <label>
+            <span>列数</span>
+            <input type="text">
+        </label> -->
+
+
+        <br>
+
+
+        <div>
+            <button @click="join">合并</button>
+            <button @click="copy">复制html代码</button>
+        </div>
+
+
+        <br>
+
+
+        <table border="1" cellpadding="8" cellspacing="0" ref="tableElement">
+            <tbody>
+                <tr v-for="cells in rows">
+                    <template v-for="cell in cells">
+                        <td
+                            v-if="cell.rowspan != 1 || cell.colspan !=1 "
+                            :rowspan="cell.rowspan"
+                            :colspan="cell.colspan"
+
+                            :data-selected="cell.selected"
+                            @click="click_td(cell)"
+                        >{{ cell.rowIndex }} , {{ cell.columnIndex }}</td>
+                        <td 
+                            v-else
+                            :data-selected="cell.selected"
+                            @click="click_td(cell)"
+                        >{{ cell.rowIndex }} , {{ cell.columnIndex }}</td>
+                    </template>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+
+    <script type="importmap">
+        {
+          "imports": {
+            "vue": "https://unpkg.com/vue@3/dist/vue.esm-browser.js"
+          }
+        }
+    </script>
+    <script type="module">
+        import { createApp , ref } from 'vue'
+
+        class Cell{
+            rowIndex = 0
+            columnIndex = 0
+            rowspan = 1
+            colspan = 1
+
+            selected = false
+            hidden = false
+        }
+
+        window.app = createApp({
+            setup(){
+                return {
+                    tableElement : ref()
+                }
+            },
+            data() {
+                return {
+                    row : 5,
+                    column : 5,
+
+                    rows : [],
+                    mergedCells : [],
+
+                }
+            },
+            methods : {
+                isMerged(columnIndex,rowIndex){
+
+                },
+                click_th(columnIndex){
+
+                },
+                click_td(cell){
+                    cell.selected = !cell.selected
+                },
+                copy(){
+                    const tableElement = this.tableElement.cloneNode(true)
+
+                    const elements = getChildrens(tableElement)
+                    elements.forEach((el)=>{
+                        el.removeAttribute('class')
+                        el.removeAttribute('data-selected')
+                    })
+
+                    console.log( exportHtml( tableElement ) );
+                    copyText( tableElement.outerHTML )
+                    // alert('已复制')
+                },
+                join(){
+
+                    const rows = this.rows.map((cells)=>{
+                        const selectedCells = cells.filter(cell=>cell.selected)
+                        if( selectedCells.length > 0 ){
+                            return selectedCells
+                        }
+                        return null
+                    })
+                    .filter(cells => cells !=null )
+
+                    const targetCell = rows[0][0]
+
+                    targetCell.colspan = rows[0].length
+                    targetCell.rowspan = rows.length
+
+                    rows.forEach((cells)=>{
+                        cells.forEach((cell)=>{
+                            cell.selected = false
+
+                            if( cell != targetCell ){
+                                cell.hidden = true
+                            }
+                        })
+                    })
+
+                    this.rows = this.rows.map((cells)=>{
+                        return cells.filter(cell=> cell.hidden == false )
+                    })
+                },
+
+                init(){
+                    const rows = []
+                    for (let rowIndex = 0; rowIndex < this.row ; rowIndex++) {
+                        const cells = []
+                        for (let columnIndex = 0; columnIndex < this.column ; columnIndex++) {
+                            const cell = new Cell()
+                            cell.rowIndex = rowIndex
+                            cell.columnIndex = columnIndex
+                            cells.push(cell)
+                        }
+                        rows.push(cells)
+                    }
+
+                    this.rows = rows
+                }
+            },
+            mounted(){
+                this.init()
+                console.log( this.tableElement );
+            }
+        })
+        .mount('#app')
+
+
+
+
+        export function getChildrens( data , level = Infinity ){
+            const _data = Array.isArray(data) ? data : [data]
+            const result = []
+            _data.forEach((item)=>{
+                if( item.children && item.children.length){
+                    result.push(...item.children)
+                    if(level>0){
+                        [...item.children].forEach((_item )=>{
+                            if(_item.children && _item.children.length){
+                                result.push( ...getChildrens(_item , level -1 ))
+                            }
+                        })
+                    }
+                }
+                // if( !Array.isArray(item.children) || Array.from(item.children).length !==  ){
+                //     return
+                // }
+
+            })
+            return result
+        }
+
+
+        function exportHtml(el,lineBefore=''){
+            const attrsText = [...el.attributes].map(attr=>{
+                return `${attr.localName}="${ attr.value.replaceAll('"','&quot;') }"`
+            }).join(' ')
+
+            const children = [...el.children]
+            const childrenTexts = []
+            if( children.length > 0 ){
+                childrenTexts.push(...children.map((el)=>{
+                    return exportHtml(el,lineBefore+'    ')
+                }))
+            }
+
+            return `${lineBefore}<${ el.localName } ${attrsText}>${
+                childrenTexts.length > 0 ? '\n'+childrenTexts.join('\n')+'\n'+lineBefore : el.innerText
+            }</${ el.localName }>`
+        }
+                
+        function copyText(text) {
+            const _text = text.toString()
+            const input = document.createElement('input')
+            input.style.cssText = 'position:fixed !important;  top:0 !important;  left:0 !important;  opacity:0 !important;  pointer-events:none !important;  '
+            input.value = _text
+            document.body.appendChild(input)
+            input.select()
+            input.setSelectionRange(0, _text.length )
+            document.execCommand('copy')
+            document.body.removeChild(input)
+        }
+
+    </script>
+</body>
+</html>
