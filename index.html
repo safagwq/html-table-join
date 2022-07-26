@@ -261,7 +261,7 @@
                 }))
             }
 
-            return `${lineBefore}<${ el.localName } ${attrsText}>${
+            return `${lineBefore}<${ el.localName }${' '+attrsText}>${
                 childrenTexts.length > 0 ? '\n'+childrenTexts.join('\n')+'\n'+lineBefore : el.innerText
             }</${ el.localName }>`
         }
