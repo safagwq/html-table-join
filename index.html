@@ -7,25 +7,30 @@
     <title>在线合并单元格</title>
     <style>
         label{display:flex;  }
-        td[data-selected='true']{background:rgb(139, 132, 219)  }
+        pre{white-space: pre-line;}
+        td[data-selected='true']{background:rgb(206, 202, 253)  }
     </style>
 </head>
 <body>
     <div id="app">
-        <!-- <label>
-            <span>行数</span>
-            <input type="text" >
+        <pre>
+            双击表格可以修改内容 !
+            修改表格会自动保存 !
+        </pre>
+
+        <label>
+            <span>行数(1-100)</span>
+            <input type="text" type="number" :value="row" @change="update('row',$event.target.value)">
         </label>
         <label>
-            <span>列数</span>
-            <input type="text">
-        </label> -->
-
+            <span>列数(1-100)</span>
+            <input type="text" type="number" :value="column" @change="update('column',$event.target.value)">
+        </label>
 
         <br>
 
-
         <div>
+            <button @click="init">重新生成表格</button>
             <button @click="join">合并</button>
             <button @click="copy">复制html代码</button>
         </div>
@@ -45,12 +50,14 @@
 
                             :data-selected="cell.selected"
                             @click="click_td(cell)"
-                        >{{ cell.rowIndex }} , {{ cell.columnIndex }}</td>
+                            @dblclick="edit(cell)"
+                        >{{ cell.text }}</td>
                         <td 
                             v-else
                             :data-selected="cell.selected"
                             @click="click_td(cell)"
-                        >{{ cell.rowIndex }} , {{ cell.columnIndex }}</td>
+                            @dblclick="edit(cell)"
+                        >{{ cell.text }}</td>
                     </template>
                 </tr>
             </tbody>
@@ -58,51 +65,69 @@
     </div>
 
 
-    <script type="importmap">
-        {
-          "imports": {
-            "vue": "https://unpkg.com/vue@3/dist/vue.esm-browser.js"
-          }
-        }
-    </script>
-    <script type="module">
-        import { createApp , ref } from 'vue'
-
+    <script src="https://unpkg.com/vue@3.2.37/dist/vue.global.prod.js"></script>
+    <script>
         class Cell{
             rowIndex = 0
             columnIndex = 0
             rowspan = 1
             colspan = 1
+            text = ''
 
             selected = false
             hidden = false
+
+            constructor(rowIndex,columnIndex){
+                this.text = `${rowIndex},${columnIndex}`
+            }
         }
 
-        window.app = createApp({
+        window.app = Vue.createApp({
             setup(){
                 return {
-                    tableElement : ref()
+                    tableElement : Vue.ref()
                 }
             },
             data() {
                 return {
                     row : 5,
                     column : 5,
-
                     rows : [],
-                    mergedCells : [],
-
                 }
             },
             methods : {
-                isMerged(columnIndex,rowIndex){
-
+                update(key,value){
+                    let oldValue = this[key]
+                    let _value = parseInt(value)
+                    if(_value){
+                        if(_value < 1){
+                            _value = 1
+                        }
+                        else if(_value>100){
+                            _value = 100
+                        }
+                        this[key] = ''
+                        this[key] = _value
+                        return
+                    }
+                    this[key] = ''
+                    this[key] = oldValue
                 },
                 click_th(columnIndex){
 
                 },
                 click_td(cell){
                     cell.selected = !cell.selected
+                },
+                edit(cell){
+                    const newText = prompt('修改信息' , cell.text)
+                    if( typeof newText == 'string' ){
+                        cell.text = newText
+                    }
+                    this.cache()
+                },
+                cache(){
+                    localStorage.setItem('cache_table_cells',JSON.stringify(this.rows))
                 },
                 copy(){
                     const tableElement = this.tableElement.cloneNode(true)
@@ -113,9 +138,8 @@
                         el.removeAttribute('data-selected')
                     })
 
-                    console.log( exportHtml( tableElement ) );
-                    copyText( tableElement.outerHTML )
-                    // alert('已复制')
+                    copyText( exportHtml( tableElement ) )
+                    alert('已复制')
                 },
                 join(){
 
@@ -146,6 +170,8 @@
                     this.rows = this.rows.map((cells)=>{
                         return cells.filter(cell=> cell.hidden == false )
                     })
+
+                    this.cache()
                 },
 
                 init(){
@@ -153,9 +179,7 @@
                     for (let rowIndex = 0; rowIndex < this.row ; rowIndex++) {
                         const cells = []
                         for (let columnIndex = 0; columnIndex < this.column ; columnIndex++) {
-                            const cell = new Cell()
-                            cell.rowIndex = rowIndex
-                            cell.columnIndex = columnIndex
+                            const cell = new Cell(rowIndex , columnIndex)
                             cells.push(cell)
                         }
                         rows.push(cells)
@@ -165,8 +189,13 @@
                 }
             },
             mounted(){
-                this.init()
-                console.log( this.tableElement );
+                const cachedRows = localStorage.getItem('cache_table_cells')
+                if( cachedRows ){
+                    this.rows = JSON.parse(cachedRows)
+                }
+                else{
+                    this.init()
+                }
             }
         })
         .mount('#app')
@@ -174,7 +203,7 @@
 
 
 
-        export function getChildrens( data , level = Infinity ){
+        function getChildrens( data , level = Infinity ){
             const _data = Array.isArray(data) ? data : [data]
             const result = []
             _data.forEach((item)=>{
