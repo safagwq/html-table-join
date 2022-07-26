@@ -41,7 +41,7 @@
         <table border="1" cellpadding="8" cellspacing="0" ref="tableElement">
             <tbody>
                 <tr v-for="cells in rows">
-                    <template v-for="cell in cells">
+                    <template v-for="cell in cells.filter(_cell=>_cell.hidden == false)">
                         <td
                             v-if="cell.rowspan != 1 || cell.colspan !=1 "
                             :rowspan="cell.rowspan"
@@ -169,10 +169,6 @@
                         })
                     })
 
-                    this.rows = this.rows.map((cells)=>{
-                        return cells.filter(cell=> cell.hidden == false )
-                    })
-
                     this.cache()
                 },
                 split(){
@@ -188,38 +184,16 @@
                     })
 
                     rows.forEach(({ cell , cells })=>{
-                        if(cell.colspan == 1 && cell.rowspan == 1){
-                            return
+
+                        for(let row = 0 ; row< cell.rowspan ;row++){
+                            for(let column = 0 ; column< cell.colspan ;column++){
+                                this.rows[row  + cell.rowIndex][ column  + cell.columnIndex ].hidden = false
+                            }
                         }
 
-                        const beInsertRows = this.createRows(cell.rowspan , cell.colspan , cell.rowIndex, cell.columnIndex)
-                        const beInsertColumn = cells.slice(0,cells.indexOf(cell)).reduce((value,item)=>{
-                            return value + item.colspan
-                        },0)
-                        cells.splice( cells.indexOf(cell) , 1 , ...beInsertRows[0] )
-
-                        let rowIndex = this.rows.indexOf(cells)
-
-                        beInsertRows[0][0].text = cell.text
-                        beInsertRows.forEach((_cells,index)=>{
-                            if(index==0){
-                                return
-                            }
-
-                            const targetCells = this.rows[rowIndex+index]
-
-
-                            let count = 0
-                            for(let i = 0;i<=targetCells.length;i++){
-
-                                if(count == beInsertColumn){
-                                    targetCells.splice(i,0,..._cells)
-                                    return
-                                }
-
-                                count += targetCells[i].colspan
-                            }
-                        })
+                        cell.rowspan = 1
+                        cell.colspan = 1
+                        cell.selected = false
                     })
                 },
                 createRows(row,column , _rowIndex=0 , _columnIndex=0){
