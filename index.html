@@ -139,6 +139,7 @@
                         el.removeAttribute('data-selected')
                     })
 
+                    console.log( exportHtml( tableElement ) );
                     copyText( exportHtml( tableElement ) )
                     alert('已复制')
                 },
@@ -267,14 +268,14 @@
                 
         function copyText(text) {
             const _text = text.toString()
-            const input = document.createElement('input')
-            input.style.cssText = 'position:fixed !important;  top:0 !important;  left:0 !important;  opacity:0 !important;  pointer-events:none !important;  '
-            input.value = _text
-            document.body.appendChild(input)
-            input.select()
-            input.setSelectionRange(0, _text.length )
+            const textarea = document.createElement('textarea')
+            textarea.style.cssText = 'position:fixed !important;  top:0 !important;  left:0 !important;  opacity:0 !important;  pointer-events:none !important;  '
+            textarea.value = _text
+            document.body.appendChild(textarea)
+            textarea.select()
+            textarea.setSelectionRange(0, _text.length )
             document.execCommand('copy')
-            document.body.removeChild(input)
+            document.body.removeChild(textarea)
         }
 
     </script>
