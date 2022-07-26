@@ -32,12 +32,11 @@
         <div>
             <button @click="init">重新生成表格</button>
             <button @click="join">合并</button>
+            <button @click="split">拆分</button>
             <button @click="copy">复制html代码</button>
         </div>
 
-
         <br>
-
 
         <table border="1" cellpadding="8" cellspacing="0" ref="tableElement">
             <tbody>
@@ -78,6 +77,8 @@
             hidden = false
 
             constructor(rowIndex,columnIndex){
+                this.rowIndex = rowIndex
+                this.columnIndex = columnIndex
                 this.text = `${rowIndex},${columnIndex}`
             }
         }
@@ -152,16 +153,17 @@
                     })
                     .filter(cells => cells !=null )
 
-                    const targetCell = rows[0][0]
+                    const startCell = rows[0][0]
+                    const endCell = rows[rows.length -1][rows.length -1]
 
-                    targetCell.colspan = rows[0].length
-                    targetCell.rowspan = rows.length
+                    startCell.colspan = rows[0].length
+                    startCell.rowspan = rows.length
 
                     rows.forEach((cells)=>{
                         cells.forEach((cell)=>{
                             cell.selected = false
 
-                            if( cell != targetCell ){
+                            if( cell != startCell ){
                                 cell.hidden = true
                             }
                         })
@@ -173,19 +175,68 @@
 
                     this.cache()
                 },
+                split(){
 
-                init(){
                     const rows = []
-                    for (let rowIndex = 0; rowIndex < this.row ; rowIndex++) {
+                    this.rows.forEach((cells)=>{
+                        rows.push(...cells.filter(cell=>cell.selected).map((cell)=>{
+                            return {
+                                cell : cell,
+                                cells : cells
+                            }
+                        }))
+                    })
+
+                    rows.forEach(({ cell , cells })=>{
+                        if(cell.colspan == 1 && cell.rowspan == 1){
+                            return
+                        }
+
+                        const beInsertRows = this.createRows(cell.rowspan , cell.colspan , cell.rowIndex, cell.columnIndex)
+                        const beInsertColumn = cells.slice(0,cells.indexOf(cell)).reduce((value,item)=>{
+                            return value + item.colspan
+                        },0)
+                        cells.splice( cells.indexOf(cell) , 1 , ...beInsertRows[0] )
+
+                        let rowIndex = this.rows.indexOf(cells)
+
+                        beInsertRows[0][0].text = cell.text
+                        beInsertRows.forEach((_cells,index)=>{
+                            if(index==0){
+                                return
+                            }
+
+                            const targetCells = this.rows[rowIndex+index]
+
+
+                            let count = 0
+                            for(let i = 0;i<=targetCells.length;i++){
+
+                                if(count == beInsertColumn){
+                                    targetCells.splice(i,0,..._cells)
+                                    return
+                                }
+
+                                count += targetCells[i].colspan
+                            }
+                        })
+                    })
+                },
+                createRows(row,column , _rowIndex=0 , _columnIndex=0){
+                    const rows = []
+                    for (let rowIndex = 0; rowIndex < row ; rowIndex++) {
                         const cells = []
-                        for (let columnIndex = 0; columnIndex < this.column ; columnIndex++) {
-                            const cell = new Cell(rowIndex , columnIndex)
+                        for (let columnIndex = 0; columnIndex < column ; columnIndex++) {
+                            const cell = new Cell(rowIndex+_rowIndex , columnIndex+_columnIndex)
                             cells.push(cell)
                         }
                         rows.push(cells)
                     }
-
-                    this.rows = rows
+                    return rows
+                },
+                init(){
+                    this.rows = this.createRows(this.row , this.column)
+                    this.cache()
                 }
             },
             mounted(){
@@ -217,10 +268,6 @@
                         })
                     }
                 }
-                // if( !Array.isArray(item.children) || Array.from(item.children).length !==  ){
-                //     return
-                // }
-
             })
             return result
         }
